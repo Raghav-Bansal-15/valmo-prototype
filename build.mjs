@@ -1,0 +1,13 @@
+import {readFile,mkdir,writeFile,rm} from 'node:fs/promises';
+const css=(await readFile('design/tokens.css','utf8'))+'\n'+(await readFile('app/styles.css','utf8')).replace("@import url('../design/tokens.css');",'');
+const engine=await readFile('app/engine.js','utf8');
+const visuals=await readFile('app/visuals.js','utf8');
+const reuse=(await readFile('app/reuse-view.js','utf8')).replace(/^import .*;\n/gm,'');
+const main=(await readFile('app/main.js','utf8')).replace(/^import .*;\n/gm,'');
+const inline=[engine,visuals,reuse,main].join('\n').replace(/^export /gm,'');
+const template=await readFile('index.html','utf8');
+await mkdir('dist',{recursive:true});
+await writeFile('dist/valmo-demo.html',template.replace('<link rel="stylesheet" href="app/styles.css">',`<style>${css}</style>`).replace('<script type="module" src="app/main.js"></script>',`<script>${inline}</script>`));
+await rm('dist/app',{recursive:true,force:true});
+await rm('dist/tokens.css',{force:true});
+console.log('Built dist/valmo-demo.html — self-contained, no network dependencies');
