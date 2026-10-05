@@ -1,63 +1,97 @@
 # VALMO Decision Studio
 
-[Open the hosted prototype](https://Raghav-Bansal-15.github.io/valmo-prototype/) · [Portable offline demo](dist/valmo-demo.html)
+### Fewer returns. More possibilities.
 
-Meesho DICE Stage 2 · NewGenLabs · IIT (BHU)
+**NewGenLabs · IIT (BHU) · Meesho DICE Challenge, Stage 2**
 
-Interactive frontend for the NewGenLabs Meesho DICE prototype. Its design uses the provided PDF: sampled plum `#620555`, pink, warm yellow, white panels and pale blush backgrounds.
+[Open the live prototype](https://raghav-bansal-15.github.io/valmo-prototype/) · [Download the offline demo](https://raw.githubusercontent.com/Raghav-Bansal-15/valmo-prototype/main/dist/valmo-demo.html)
 
-## Run
+VALMO Decision Studio is an interactive operations prototype for reducing return-to-origin, or RTO, shipments. It brings buyer confirmation, delivery-attempt verification, local parcel reuse, and in-transit interception into one workspace. Each decision follows a parcel and records its outcome and simulated cost.
+
+![VALMO Decision Studio overview](design/screens/02-overview.jpg)
+
+## The problem
+
+A failed delivery can send a parcel back to its seller even when the original buyer could accept a new slot or a compatible buyer is nearby. Cancellation intent can also emerge while the parcel is still travelling. Operations need to know which orders need attention, whether a delivery attempt was genuine, and which recovery route is feasible before paying for the return journey.
+
+## How the prototype works
+
+| Module | Decision demonstrated |
+| --- | --- |
+| Overview | Find an at-risk parcel, inspect its next action, and follow the decision trail. |
+| AddressSense | Inspect a sample risk score, check hub serviceability, and simulate buyer confirmation or address correction. Silence alone does not hold dispatch. |
+| RiderTrust | Accept attempt evidence only when the rider is within 500 m of the address and the masked call lasts longer than 15 seconds. |
+| RTOShield / Reuse engine | Match an eligible refusal at the destination hub to nearby demand, obtain buyer consent, re-dispatch, and record the delivery outcome. |
+| DispatchSmart / Mid-mile intercept | Compare compatible demand at Delhi and Jaipur with partial reverse logistics, then choose the cheapest feasible route. |
+| Impact & guardrails | Inspect scenario economics, change planning assumptions, and export the action trail as JSON. |
+
+Reuse requires a verified genuine refusal, hub intake, refusal marking within 24 hours, seller permission, compatible demand, a hold of at most seven days, and reuse inventory within 15% of hub capacity. Quality and hygiene exclusions take priority. An unavailable customer gets rescheduling; an address failure gets landmark recovery. A variant difference requires explicit buyer consent.
+
+## Try the demo
+
+Open the [hosted prototype](https://raghav-bansal-15.github.io/valmo-prototype/) and select **Start guided demo**. No login or download is required.
+
+1. In AddressSense, preview and queue the nudge for **VAL-9821**, then confirm delivery on the phone preview.
+2. In RiderTrust, select **Load genuine attempt** and **Verify attempt** for **VAL-8842**.
+3. In Reuse, send a rematch offer, simulate buyer acceptance, re-dispatch locally, and simulate successful delivery. Savings enter the run after that outcome.
+4. In Mid-mile intercept, inspect **VAL-5519**. Switch Delhi demand off to see the Jaipur route, then commit a simulated route.
+5. In Impact, inspect the recorded actions and export the run.
+
+Use **Next demo step** to move through the walkthrough. **Reset demo** restores the starting state. Every visitor sees the same prototype version; each browser saves its own run locally.
+
+## Scenario economics
+
+The interception example uses a ₹170 traditional RTO baseline. Each route includes ₹10 in operating costs.
+
+| Feasible route | Total scenario cost | Saving against baseline |
+| --- | ---: | ---: |
+| Delhi rematch | ₹70 | ₹100 |
+| Jaipur rematch | ₹83 | ₹87 |
+| Partial reverse from Delhi | ₹129 | ₹41 |
+
+The default planning mix is 20% Delhi rematch, 25% Jaipur rematch, and 55% partial reverse. Its weighted saving is **₹64.30 per intercepted parcel**. These figures are proposal assumptions used by the demo, not measured pilot results.
+
+## Implementation status
+
+The frontend implements the interactive workflows, policy checks, parcel-specific state, buyer-consent sequence, route calculations, guided demo, and JSON export. Completed actions cannot count savings twice.
+
+Orders, buyer identities, risk scores, demand, telemetry, messages, and delivery outcomes are synthetic. The prototype sends no real messages and has no live logistics or model-inference integration.
+
+`model-source/` contains seven supplied Python scripts for data preparation, tabular baselines, graph construction, GraphSAGE training, and evaluation. Datasets, graph artifacts, and a trained checkpoint are not included. The scripts have not been run as part of this frontend release. GraphSAGE is the supplied baseline; live DPHGNN inference remains outside this prototype.
+
+## Run locally
+
+Use a current Node.js release. The frontend has no npm package dependencies, so installation is not required.
 
 ```sh
+git clone https://github.com/Raghav-Bansal-15/valmo-prototype.git
+cd valmo-prototype
 npm start
 ```
 
-Open http://localhost:4187. No package installation is required. Node is the only runtime dependency. Alternatively, open `dist/valmo-demo.html` directly in a browser for the complete self-contained offline demo.
+Open [localhost:4187](http://localhost:4187).
 
 ```sh
-npm test
-npm run build
+npm test       # Run the policy and workflow tests
+npm run build  # Generate the self-contained offline demo
 ```
 
-## Judge walkthrough
+For offline use, download and open `dist/valmo-demo.html` in a browser. The source `index.html` uses JavaScript modules and should run through the local server. GitHub Pages serves the hosted app from `main` at the repository root.
 
-1. Start the guided demo. Inspect the high-risk kurti order in AddressSense.
-2. Preview and queue the synthetic WhatsApp nudge; confirm delivery on the phone preview. Try an address correction or hub mismatch too.
-3. RiderTrust: load a genuine attempt and verify. Move GPS outside 500 m or call duration to 15 seconds to inspect the rejection case.
-4. Reuse: verify the dinner-set parcel, select genuine refusal, seller permission and a parcel received at the destination hub. Choose a nearby buyer, send a simulated offer, accept it, re-dispatch, then record the delivery outcome. Medium fit requires explicit acceptance of the disclosed variant difference. Try a defect, unavailable buyer, low fit, refusal marking >24 hours, hold >7 days, or capacity >15% to see exceptions.
-5. Intercept: inspect VAL-5519. Delhi demand selects ₹70 total / ₹100 saving. Disable Delhi and Jaipur wins at ₹83 / ₹87. Disable both for partial reverse at ₹129 / ₹41. Costs include ₹10 operations.
-6. Impact: default match shares reproduce ₹64.30 expected net saving. Export the action log as JSON.
+## Repository guide
 
-State persists in local browser storage. Reset Demo clears only this app’s saved synthetic run. Completed routing outcomes are idempotent. Reuse offers, consent, dispatch and outcomes persist per parcel; savings enter the run only after simulated successful delivery. Version 2 starts a fresh saved run so invalid version 1 parcel verification is not carried over.
+| Path | Contents |
+| --- | --- |
+| `app/engine.js` | Policy rules, compatibility checks, reuse transitions, and cost calculations |
+| `app/` | Screen rendering, browser state, styles, and illustrations |
+| `tests/engine.test.mjs` | 13 automated policy and workflow tests |
+| `model-source/` | Supplied Python modelling pipeline |
+| `dist/valmo-demo.html` | Single-file offline build |
+| `design/` | Design tokens, process notes, reference board, and screenshots |
+| [SUBMISSION.md](SUBMISSION.md) | Presentation and handoff guide |
 
-## What is implemented
+The interface follows the submitted deck's plum, pink, warm yellow, and blush palette. The [Paper design file](https://app.paper.design/file/01M45N62H1HM7FX426JC4XPR56/p-1-0) contains the foundations, overview, and a partial AddressSense artboard. All six screens are implemented in the frontend. See the [design process](design/PROCESS.md) and [screen board](https://raghav-bansal-15.github.io/valmo-prototype/design/board.html) for the design sequence.
 
-Six responsive screens; parcel selection and search; risk scenario display; hub-zone gate; phone confirmation preview; strict GPS + call verification; refusal triage; destination-hub intake, 24-hour marking, seller policy, quality, compatibility and capacity gates; staged offer, buyer consent, local dispatch and delivery outcomes; Delhi/Jaipur demand routing; full cost breakdowns; weighted economics; action trail; JSON export; guided demo; keyboard-accessible dialog; reduced-motion support.
+## Validation
 
-## What is simulated
-
-All orders, buyer identities, demand, telemetry, graph illustration and scores are synthetic. No messages are sent and no actual parcels are rerouted. The provided training ZIP has seven Python scripts, but no cleaned tables, graph artifacts or trained checkpoint. The current training script reports evaluation metrics but does not export a model checkpoint. This frontend therefore does **not** claim live GraphSAGE / DPHGNN inference or measured pilot performance.
-
-`model-source/` preserves the provided training scripts for later integration. They were inspected, not executed; only trusted datasets should be loaded by their pickle/PyTorch readers.
-
-## Design sequence
-
-See `design/PROCESS.md` and `design/board.html` for the foundation and screen sequence. [Open the editable Paper file](https://app.paper.design/file/01M45N62H1HM7FX426JC4XPR56/p-1-0). Its 26 tokens, foundation artboard and overview were built incrementally and visually reviewed. AddressSense has its shell, heading, parcel selector and order context. Paper then reached the account's weekly MCP limit (reset in five days), so the remaining module artboards could not be completed. All six modules are complete in the runnable frontend; the local board preserves their screenshots and design rationale. The local implementation is not claimed to be a generated export of Paper.
-
-## Model integration
-
-Use `scoreOrder(order)` behind an adapter when artifacts are available. The response should include `probability`, `modelVersion`, `generatedAt`, `featureProvenance`, `coldStart`, and `availableSignals`. Replace sample scores only after prediction calibration and holdout validation. GraphSAGE in the supplied ZIP is a baseline; it is not the DPHGNN system cited in the deck. Graph proximity is not a causal explanation or an estimate of nudge treatment effect.
-
-Real operations would consume separate commands: `queueNudge`, `verifyAttempt`, `requestAddressCorrection`, `confirmBuyer`, and `commitRoute`, with parcel-scoped idempotency keys and server-authoritative policy checks. A backend adds value once we have model artifacts or real integrations; a fake inference endpoint would add complexity without evidence.
-
-## Submission packaging
-
-Submission repository: https://github.com/Raghav-Bansal-15/valmo-prototype
-
-GitHub Pages publishes `main` from the repository root. All app assets use relative paths, so the prototype works under `/valmo-prototype/`. Open the hosted prototype and select **Start guided demo**. **Reset demo** returns each browser to the same initial run. Actions are stored independently in each browser.
-
-The original supplied files remain separate from this release.
-
-## Reuse correction · v2
-
-See `REUSE-V2.md` for the repaired flow and browser verification. Mid-mile routing and its screen are unchanged. The standalone build embeds a classic script with no module imports or external resources. Send the generated HTML rather than opening the source `index.html` without a server.
+The release passed 13 automated tests covering attempt-verification boundaries, reuse eligibility, buyer compatibility and consent, workflow transitions, routing costs, weighted savings, and duplicate-action protection. Browser checks covered the hosted guided journey, reuse exception states, saved state, and mobile layouts. The hosted journey completed without browser console errors.
